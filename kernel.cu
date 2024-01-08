@@ -101,6 +101,7 @@ int main()
                 add_in_file(node_answers, contents, file_name, chromosome_number_str);
                 contents.clear();
                 chromosome_number_str.clear();
+                free(cpu_thread_answers);
             }
             else {
                 data_exists_flag = true;
@@ -114,6 +115,9 @@ int main()
             }
             if (!chromosome_number_str.empty()){
                 std::cout << "chromosome - " << chromosome_number_str[1] << std::endl;
+            }
+            if (chromosome_number_str[1] == 1){
+                break;
             }
             continue;
         }

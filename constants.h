@@ -13,8 +13,9 @@
 #define L3_MAX 5
 
 struct GPUNodeArray {
-    size_t x1_index;
-    size_t first_length;
+    bool have_one_node;
+    char add_node_mask;
+    char node_mask;
 };
 
 struct NodeArray {

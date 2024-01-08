@@ -21,11 +21,11 @@ __device__ bool GPU_check_string_equality(const char* block_data_ptr, char* subs
     bool mismatch_occured = false;
     for (size_t current_subsequence_index = 0; current_subsequence_index < 5; ++current_subsequence_index) {
         if (subsequence[current_subsequence_index] != block_data_ptr[current_sequence_begin + current_subsequence_index]) {
-            // if (mismatch_occured) {
-            //     return false;
-            // }
-            // mismatch_occured = true;
-            return false;
+            if (mismatch_occured) {
+                return false;
+            }
+            mismatch_occured = true;
+            // return false;
         }
     }
     return true;
@@ -57,19 +57,8 @@ __device__ size_t GPU_complementary_subsequence_exists_in_end(const char* block_
     return 0;
 }
 
-__global__ void substringProcessKernel(const char* data_ptr, size_t data_length, GPUNodeArray* thread_answers)
-{
-    size_t thread_index = blockIdx.x * BLOCK_SIZE + threadIdx.x;
-    if (thread_index >= data_length - PROCESS_MAX_LENGTH) {
-        GPUNodeArray threadNodeArray = {0, 0};
-        thread_answers[thread_index] = threadNodeArray;
-        return;
-    }
-    size_t node_number = 0;
-    GPUNodeArray threadNodeArray = {0, 0};
-    for (size_t current_sequence_length = PROCESS_MAX_LENGTH; current_sequence_length >= PROCESS_MIN_LENGTH; --current_sequence_length) {
-        
-        //check if sequence has only A T or has more than a half N
+__device__ size_t check_length_validity(const char* data_ptr, size_t current_sequence_length, size_t thread_index){
+    //check if sequence has only A T or has more than a half N
         size_t N_count = 0;
         size_t AT_count = 0;
         for (size_t current_sequence_index = thread_index; current_sequence_index < thread_index + current_sequence_length; ++current_sequence_index) {
@@ -77,22 +66,41 @@ __global__ void substringProcessKernel(const char* data_ptr, size_t data_length,
             if (data_ptr[current_sequence_index] == 'A' || data_ptr[current_sequence_index] == 'T') ++AT_count;
         }
         if (N_count > current_sequence_length / 2 || AT_count >= current_sequence_length - 1){
-            continue;
+            return 0;
         }
 
         size_t x1_index = thread_index;
         size_t x3_index = GPU_complementary_subsequence_exists_in_begin(data_ptr, x1_index, current_sequence_length);
         if (x3_index == 0) {
-            continue;
+            return 0;
         }
         size_t x4_index = (current_sequence_length - 5) + thread_index;
         size_t x2_index = GPU_complementary_subsequence_exists_in_end(data_ptr, thread_index, x4_index, current_sequence_length);
         if (x2_index == 0) {
-            continue;
+            return 0;
         }
-        threadNodeArray.x1_index = x1_index;
-        threadNodeArray.first_length = current_sequence_length;
-        break;
+    return x1_index;
+}
+
+__global__ void substringProcessKernel(const char* data_ptr, size_t data_length, GPUNodeArray* thread_answers)
+{
+    size_t thread_index = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+    if (thread_index >= data_length - PROCESS_MAX_LENGTH) {
+        GPUNodeArray threadNodeArray = {false, 0x00, 0x00};
+        thread_answers[thread_index] = threadNodeArray;
+        return;
+    }
+    GPUNodeArray threadNodeArray = {false, 0x00, 0x00};
+    for (size_t current_sequence_length = PROCESS_MAX_LENGTH; current_sequence_length >= PROCESS_MIN_LENGTH; --current_sequence_length) {
+        size_t x1_index = check_length_validity(data_ptr, current_sequence_length, thread_index);
+        if (x1_index != 0){
+            threadNodeArray.have_one_node = true;
+            if (current_sequence_length == PROCESS_MAX_LENGTH){
+                threadNodeArray.add_node_mask |= 0x01;
+            } else{
+                threadNodeArray.node_mask |= (1 << (current_sequence_length - PROCESS_MIN_LENGTH));
+            }
+        }
     }
     thread_answers[thread_index] = threadNodeArray;
     return;
