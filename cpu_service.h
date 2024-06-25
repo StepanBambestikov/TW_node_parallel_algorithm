@@ -70,9 +70,6 @@ void process_substring(const std::vector<char>& contents, std::vector<NodeArray>
     std::string str( contents.begin() + current_absolute_index, contents.begin() + current_absolute_index + current_sequence_length);
     for (size_t current_sequence_index = 0; current_sequence_index < current_sequence_length - 1; ++current_sequence_index) {
         auto current_str = str.substr(current_sequence_index, 2);
-        // if (current_str[0] == current_str[1]){
-        //     continue;
-        // }
         if (pair_map.find(current_str) != pair_map.end()){
             pair_map[current_str] += 1;
         } else{
@@ -84,12 +81,6 @@ void process_substring(const std::vector<char>& contents, std::vector<NodeArray>
             return;
         }
     }
-    // for(const auto& [k, v] : pair_map){
-    //     if (v > 7){
-    //         return;
-    //     }
-    // }
-
 
     size_t x1_index = current_absolute_index;
     auto x3_indexes = complementary_subsequence_exists_in_begin(contents, x1_index, current_sequence_length, begin_comp_subsequence);
@@ -133,9 +124,6 @@ std::vector<NodeArray> cpu_node_processing(const std::vector<char>& content, GPU
     size_t thread_answers_size = content.size();
     auto node_answers = std::vector<NodeArray>();
     for (size_t current_thread_answer = 0; current_thread_answer < thread_answers_size; ++current_thread_answer) {
-        // if (current_thread_answer % 40000000 == 0){
-        //     std::cout << (float(current_thread_answer) / thread_answers_size) * 100 << "%" << std::endl;
-        // }
         auto current_raw_node = thread_answers[current_thread_answer];
         if (!current_raw_node.have_one_node){
             continue;
@@ -149,7 +137,6 @@ std::vector<NodeArray> cpu_node_processing(const std::vector<char>& content, GPU
 void add_in_file(const std::vector<NodeArray>& node_answers, std::vector<char> content, const std::string& file_name, const std::string& chromosome_name){
     std::ofstream outfile;
     outfile.open(file_name, std::ios::app);
-    // outfile << "<";
     for (NodeArray current_answer : node_answers) {
         outfile << chromosome_name
                 << " " 
