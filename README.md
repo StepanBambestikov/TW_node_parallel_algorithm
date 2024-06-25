@@ -55,7 +55,7 @@ The project also has a bash script for processing all genomic files inside the r
 ### Run the script
 
    ```bash
-   bash genome_proc.sh program_path path_to_data_folder
+   bash genome_script.sh program_path path_to_data_folder
    ```
 
 Where:
