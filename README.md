@@ -46,3 +46,18 @@ Where:
    - `file_name.fna`: Genomic file in .fna format
    - `5`: duplex area size
    - `0`: maximum number of mismatches
+
+## Bash script for analyzing multiple files
+
+The project also has a bash script for processing all genomic files inside the required folder. Processing takes place over all duplex sections from 5 to 20
+
+
+### Run the script
+
+   ```bash
+   bash genome_proc.sh program_path path_to_data_folder
+   ```
+
+Where:
+   - `program_path`: Rellative path to the program
+   - `path_to_data_folder`: Relative path to data folder
