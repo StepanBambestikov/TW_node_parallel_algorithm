@@ -1,7 +1,6 @@
 ﻿#include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <cuda.h>
-#include <device_functions.h>
 #include <cuda_runtime_api.h>
 #include <vector>
 #include <stdio.h>
@@ -12,11 +11,13 @@
 #include <chrono>
 #include "cpu_service.h"
 #include "gpu_service.cu"
+#include "constants.h"
+#include <algorithm>
+#include <cmath>
 
-GPUNodeArray* gpu_chromosome_processing(std::vector<char> content){
+GPUNodeArray* gpu_chromosome_processing(std::vector<char> content, Constants constants){
     char* cuda_data_ptr = NULL;
     int data_size = content.size();
-    std::cout << "data size: " <<  data_size << std::endl;
     cudaError_t cudaStatus;
     size_t block_number = std::ceil(float(data_size) / BLOCK_SIZE);
     GPUNodeArray* thread_answers = 0;
@@ -36,14 +37,7 @@ GPUNodeArray* gpu_chromosome_processing(std::vector<char> content){
         fprintf(stderr, "cudaMalloc failed!");
     }
 
-    std::cout << "block number " << block_number << std::endl;
-    std::cout << "gpu work begin: " << std::endl;
-
-    auto start = std::chrono::high_resolution_clock::now();
-    substringProcessKernel<<<block_number, BLOCK_SIZE>>>(cuda_data_ptr, data_size, thread_answers);
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    std::cout << "duration time: " << duration.count() << std::endl;
+    substringProcessKernel<<<block_number, BLOCK_SIZE>>>(cuda_data_ptr, data_size, thread_answers, constants);
 
     //Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
@@ -64,67 +58,70 @@ GPUNodeArray* gpu_chromosome_processing(std::vector<char> content){
 
     GPUNodeArray* cpu_thread_answers = (GPUNodeArray*)malloc(thread_answers_size * sizeof(NodeArray));
     // Copy output vector from GPU buffer to host memory.
-    std::cout << "gpu to host copy begin: " << std::endl;
     cudaStatus = cudaMemcpy(cpu_thread_answers, thread_answers, thread_answers_size * sizeof(NodeArray), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy DeviceToHost failed!");
         clear_memory(cuda_data_ptr, thread_answers);
         return NULL;
     }
-    std::cout << "gpu to host copy ended: " << std::endl;
     clear_memory(cuda_data_ptr, thread_answers);
     return cpu_thread_answers;
 }
 
-int main()
+int main(int argc, char* argv[])
 {   
-    std::string file_name("nodes.txt");
+    if (argc != 4){
+        std::cout << "invalid number of params" << std::endl;
+        return -1;
+    }
+    auto input_file_name = argv[1];
+    STEM_SIZE = std::stoi(argv[2]);
+    MAX_MISMATCH_NUMBER = std::stoi(argv[3]);
+
+    std::string file_name(input_file_name);
+    file_name += "_" + std::to_string(STEM_SIZE) + "_" + std::to_string(MAX_MISMATCH_NUMBER) + "_nodes_new.txt";
+    std::cout << file_name << std::endl;
     std::ofstream outfile(file_name);
     outfile.clear();
-    char* cuda_data_ptr = 0;
     std::vector<char> contents;
     contents.reserve(2000000);
 
-    char current_char;
-    std::ifstream in("hg38.fa");
+    std::string current_line;
+    std::ifstream in(input_file_name);
     bool data_exists_flag = false;
-    std::cout << "file process begin" << std::endl;
-    size_t data_length = 10000000;
-    std::vector<char> chromosome_number_str;
+
+    L1_MIN = int(std::ceil(float(STEM_SIZE)/4));
+    L3_MIN = int(std::ceil(float(STEM_SIZE)/4));
+    L1_MAX = STEM_SIZE;
+    L3_MAX = STEM_SIZE;
+    L2_MIN = STEM_SIZE;
+    L2_MAX = int(std::floor(3 * float(STEM_SIZE) / 2));
+
+    PROCESS_MIN_LENGTH = STEM_SIZE * 4 + L1_MIN * 2 + L2_MIN;
+    PROCESS_MAX_LENGTH = STEM_SIZE * 4 + L1_MAX * 2 + L2_MAX;
+
+    subsequence = std::vector<char>(STEM_SIZE, 'N');
+
+    Constants constants = Constants{PROCESS_MAX_LENGTH, PROCESS_MIN_LENGTH, L1_MIN, L2_MIN, L3_MIN, L1_MAX, L2_MAX, L3_MAX, STEM_SIZE, MAX_MISMATCH_NUMBER};
+
     while (!in.eof())
     {
-        in >> current_char;
-        if (current_char == '>'){
+        std::getline(in, current_line);
+        if (current_line[0] == '>'){
             if (data_exists_flag){
-                auto cpu_thread_answers = gpu_chromosome_processing(contents);
+                auto cpu_thread_answers = gpu_chromosome_processing(contents, constants);
                 auto node_answers = cpu_node_processing(contents, cpu_thread_answers);
-                add_in_file(node_answers, contents, file_name, chromosome_number_str);
+                add_in_file(node_answers, contents, file_name, current_line);
                 contents.clear();
-                chromosome_number_str.clear();
                 free(cpu_thread_answers);
             }
             else {
                 data_exists_flag = true;
             }
-            while(current_char != 'N'){
-                chromosome_number_str.push_back(current_char);
-                in >> current_char;
-                if (chromosome_number_str.size() > 2 && chromosome_number_str[1] == 'M'){
-                    break;
-                }
-            }
-            if (!chromosome_number_str.empty()){
-                std::cout << "chromosome - " << chromosome_number_str[1] << std::endl;
-            }
-            if (chromosome_number_str[1] == 1){
-                break;
-            }
             continue;
         }
-        contents.push_back(current_char);
-        // if (num_characters > data_length + 100){
-        //     break;
-        // }
+        std::transform(current_line.begin(), current_line.end(), current_line.begin(), ::toupper);
+        contents.insert(contents.end(), current_line.begin(), current_line.end());
     }
     return 0;
 }
