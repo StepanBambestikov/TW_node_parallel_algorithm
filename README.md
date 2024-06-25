@@ -6,7 +6,9 @@ This project is an implementation of a parallel algorithm for searching for TW-t
 ## Description
 
 The TW node structure consists of pairwise complementary sections (X1 - X3) and (X2 - X4) separated by linker sections L1, L2 and L3
+
 ![alt text](https://github.com/StepanBambestikov/cuda_dna/blob/main/TW-type.jpg?raw=true)
+
 The algorithm performs filtering using the GPU, repeatedly reducing the possible search locations in the genome, after which the sequential algorithm outputs the final answer.
 
 
