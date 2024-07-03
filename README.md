@@ -23,8 +23,8 @@ Where there is information about the location in the chromosome of all the const
 
 ### 1. Prepare package Installation
 
-   Installing the compiler nvcc version 11.5
-   Also gcc version <= 10 is required
+   - Installing the compiler nvcc version 11.5
+   - Also gcc version <= 10 is required
    
 ### 2. Compile the program
 
