@@ -32,7 +32,7 @@ GPUNodeArray* gpu_chromosome_processing(std::vector<char> content, Constants con
         fprintf(stderr, "cudaMemcpy failed!");
     }
     size_t thread_answers_size = data_size;
-    cudaStatus = cudaMalloc((void**)&thread_answers, thread_answers_size * sizeof(NodeArray));
+    cudaStatus = cudaMalloc((void**)&thread_answers, thread_answers_size * sizeof(GPUNodeArray));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
     }
@@ -56,9 +56,9 @@ GPUNodeArray* gpu_chromosome_processing(std::vector<char> content, Constants con
         return NULL;
     }
 
-    GPUNodeArray* cpu_thread_answers = (GPUNodeArray*)malloc(thread_answers_size * sizeof(NodeArray));
+    GPUNodeArray* cpu_thread_answers = (GPUNodeArray*)malloc(thread_answers_size * sizeof(GPUNodeArray));
     // Copy output vector from GPU buffer to host memory.
-    cudaStatus = cudaMemcpy(cpu_thread_answers, thread_answers, thread_answers_size * sizeof(NodeArray), cudaMemcpyDeviceToHost);
+    cudaStatus = cudaMemcpy(cpu_thread_answers, thread_answers, thread_answers_size * sizeof(GPUNodeArray), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy DeviceToHost failed!");
         clear_memory(cuda_data_ptr, thread_answers);
