@@ -24,9 +24,11 @@ Where there is information about the location in the chromosome of all the const
 ### 1. Prepare package Installation
 
    ```bash
-   sudo apt-get install nvcc=V10.1.243
+   sudo apt-get install nvcc=V11.4
    ```
-
+   Installing the compiler nvcc version 11.5
+   Also gcc version <= 10 is required
+   
 ### 2. Compile the program
 
    ```bash
