@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
     {
         std::getline(in, current_line);
         if (current_line[0] == '>'){
-            if (data_exists_flag){
+            if (data_exists_flag){ //Processing of a single chromosome
                 auto cpu_thread_answers = gpu_chromosome_processing(contents, constants);
                 auto node_answers = cpu_node_processing(contents, cpu_thread_answers);
                 add_in_file(node_answers, contents, file_name, current_line);
