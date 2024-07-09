@@ -24,12 +24,14 @@ static size_t L3_MAX = 5;
 static size_t STEM_SIZE = 5;
 static size_t MAX_MISMATCH_NUMBER = 0;
 
-struct GPUNodeArray {
+struct GPUNodeArray { //Structures for GPU threads
     bool have_one_node;
     char add_node_mask;
     char node_mask;
 };
 
+//A complete structure with all the necessary information
+//about the found pseudo node for CPU processing
 struct NodeArray {
     size_t x1_index;
     size_t x2_index;
@@ -48,6 +50,7 @@ struct NodeArray {
     };
 };
 
+//Set and calculated parameters used for all processing (GPU/CPU)
 struct Constants{
     size_t PROCESS_MAX_LENGTH;
     size_t PROCESS_MIN_LENGTH;
