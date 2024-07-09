@@ -26,7 +26,7 @@ std::pair<bool, size_t> check_string_equality(std::vector<char>::const_iterator 
     for (auto current_subsequence_value = substring_begin; current_subsequence_value != substring_end; ++current_subsequence_value) {
         auto d = content_begin + int(current_index);
         if (*current_subsequence_value != *d) {
-            if (mismatch_number == MAX_MISMATCH_NUMBER) {
+            if (mismatch_number == MAX_MISMATCH_NUMBER) { //We allow discrepancies to appear up to a given number of mismatches
                 return {false, mismatch_number};
             }
             ++mismatch_number;
@@ -69,6 +69,8 @@ void process_substring(const std::vector<char>& contents, std::vector<NodeArray>
     pair_map.clear();
     std::string str( contents.begin() + current_absolute_index, contents.begin() + current_absolute_index + current_sequence_length);
     for (size_t current_sequence_index = 0; current_sequence_index < current_sequence_length - 1; ++current_sequence_index) {
+        
+    //We check that no pair of nucleotides is repeated in the sequence more than STEM_SIZE + 3
         auto current_str = str.substr(current_sequence_index, 2);
         if (pair_map.find(current_str) != pair_map.end()){
             pair_map[current_str] += 1;
@@ -108,11 +110,14 @@ void process_substring(const std::vector<char>& contents, std::vector<NodeArray>
 std::vector<NodeArray> substring_process(const std::vector<char>& contents, size_t current_absolute_index, char add_node_mask, char node_mask){
     auto node_answers = std::vector<NodeArray>();
     auto begin_comp_subsequence = make_complement_subsequence(contents, current_absolute_index);
-    if (add_node_mask & 0x01 != 0x00){
+    if (add_node_mask & 0x01 != 0x00){ //We look at the presence of possible pseudo nodes in the first byte
         process_substring(contents, node_answers, PROCESS_MAX_LENGTH, current_absolute_index, begin_comp_subsequence);
     }
 
     for (size_t current_sequence_length = PROCESS_MAX_LENGTH; current_sequence_length >= PROCESS_MIN_LENGTH; --current_sequence_length) {
+        
+        //We bypass the second byte, process the lengths in place of which 
+        //there are units in it (perhaps pseudo-nodes are located there)
         if (node_mask & (1 << (current_sequence_length - PROCESS_MIN_LENGTH))){
             process_substring(contents, node_answers, current_sequence_length, current_absolute_index, begin_comp_subsequence);
         }
@@ -125,6 +130,8 @@ std::vector<NodeArray> cpu_node_processing(const std::vector<char>& content, GPU
     auto node_answers = std::vector<NodeArray>();
     for (size_t current_thread_answer = 0; current_thread_answer < thread_answers_size; ++current_thread_answer) {
         auto current_raw_node = thread_answers[current_thread_answer];
+        //In order not to bypass all two bytes, we use the flag 
+        //that a pseudo-node may exist for the current coordinate
         if (!current_raw_node.have_one_node){
             continue;
         }
