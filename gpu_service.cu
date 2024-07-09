@@ -80,6 +80,7 @@ __device__ size_t check_length_validity(const char* data_ptr, size_t current_seq
                 ++N_count;
             }
         }
+        //Checking that all types of nucleotides are in the sequence, as well as the number of indeterminate nucleotides is less than half
         if (N_count > current_sequence_length / 2 || A_count == 0 || T_count == 0 || G_count == 0 || C_count == 0){
             return 0;
         }
@@ -100,12 +101,14 @@ __device__ size_t check_length_validity(const char* data_ptr, size_t current_seq
 __global__ void substringProcessKernel(const char* data_ptr, size_t data_length, GPUNodeArray* thread_answers, Constants constants)
 {
     size_t thread_index = blockIdx.x * BLOCK_SIZE + threadIdx.x;
-    if (thread_index >= data_length - constants.PROCESS_MAX_LENGTH) {
+    if (thread_index >= data_length - constants.PROCESS_MAX_LENGTH) { //Filtering out unnecessary streams
         GPUNodeArray threadNodeArray = {false, 0x00, 0x00};
         thread_answers[thread_index] = threadNodeArray;
         return;
     }
     GPUNodeArray threadNodeArray = {false, 0x00, 0x00};
+
+    //The work of a single thread is to bypass all possible lengths of the required pseudo-nodes for a fixed beginning of the sequence
     for (size_t current_sequence_length = constants.PROCESS_MAX_LENGTH; current_sequence_length >= constants.PROCESS_MIN_LENGTH; --current_sequence_length) {
         size_t x1_index = check_length_validity(data_ptr, current_sequence_length, thread_index, constants);
         if (x1_index != 0){
