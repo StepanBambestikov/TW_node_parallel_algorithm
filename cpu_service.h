@@ -107,19 +107,24 @@ void process_substring(const std::vector<char>& contents, std::vector<NodeArray>
     }
 }
 
-std::vector<NodeArray> substring_process(const std::vector<char>& contents, size_t current_absolute_index, char add_node_mask, char node_mask){
+std::vector<NodeArray> substring_process(const std::vector<char>& contents, size_t current_absolute_index, char* node_mask){
     auto node_answers = std::vector<NodeArray>();
     auto begin_comp_subsequence = make_complement_subsequence(contents, current_absolute_index);
-    if (add_node_mask & 0x01 != 0x00){ //We look at the presence of possible pseudo nodes in the first byte
-        process_substring(contents, node_answers, PROCESS_MAX_LENGTH, current_absolute_index, begin_comp_subsequence);
-    }
+    // if (add_node_mask & 0x01 != 0x00){ //We look at the presence of possible pseudo nodes in the first byte
+    //     process_substring(contents, node_answers, PROCESS_MAX_LENGTH, current_absolute_index, begin_comp_subsequence);
+    // }
 
-    for (size_t current_sequence_length = PROCESS_MAX_LENGTH; current_sequence_length >= PROCESS_MIN_LENGTH; --current_sequence_length) {
+    for (int current_sequence_length = PROCESS_MAX_LENGTH - PROCESS_MIN_LENGTH; current_sequence_length >= 0; --current_sequence_length) {
         
         //We bypass the second byte, process the lengths in place of which 
         //there are units in it (perhaps pseudo-nodes are located there)
-        if (node_mask & (1 << (current_sequence_length - PROCESS_MIN_LENGTH))){
-            process_substring(contents, node_answers, current_sequence_length, current_absolute_index, begin_comp_subsequence);
+        // if (node_mask & (1 << (current_sequence_length - PROCESS_MIN_LENGTH))){
+        //     process_substring(contents, node_answers, current_sequence_length, current_absolute_index, begin_comp_subsequence);
+        // }
+        int byte_index = current_sequence_length / 8;
+        int bit_index = current_sequence_length % 8;
+        if (node_mask[byte_index] & (1 << bit_index)){
+            process_substring(contents, node_answers, current_sequence_length + PROCESS_MIN_LENGTH, current_absolute_index, begin_comp_subsequence);
         }
     }
     return node_answers;
@@ -135,7 +140,7 @@ std::vector<NodeArray> cpu_node_processing(const std::vector<char>& content, GPU
         if (!current_raw_node.have_one_node){
             continue;
         }
-        auto substring_nodes = substring_process(content, current_thread_answer, current_raw_node.add_node_mask, current_raw_node.node_mask);
+        auto substring_nodes = substring_process(content, current_thread_answer, current_raw_node.node_mask);
         node_answers.insert(node_answers.end(), substring_nodes.begin(), substring_nodes.end());
     }
     return node_answers;

@@ -26,8 +26,7 @@ static size_t MAX_MISMATCH_NUMBER = 0;
 
 struct GPUNodeArray { //Structures for GPU threads
     bool have_one_node;
-    char add_node_mask;
-    char node_mask;
+    char node_mask[6];
 };
 
 //A complete structure with all the necessary information

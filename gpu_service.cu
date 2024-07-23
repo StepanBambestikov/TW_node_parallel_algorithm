@@ -102,22 +102,25 @@ __global__ void substringProcessKernel(const char* data_ptr, size_t data_length,
 {
     size_t thread_index = blockIdx.x * BLOCK_SIZE + threadIdx.x;
     if (thread_index >= data_length - constants.PROCESS_MAX_LENGTH) { //Filtering out unnecessary streams
-        GPUNodeArray threadNodeArray = {false, 0x00, 0x00};
+        GPUNodeArray threadNodeArray = {false, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
         thread_answers[thread_index] = threadNodeArray;
         return;
     }
-    GPUNodeArray threadNodeArray = {false, 0x00, 0x00};
+    GPUNodeArray threadNodeArray = {false, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
     //The work of a single thread is to bypass all possible lengths of the required pseudo-nodes for a fixed beginning of the sequence
-    for (size_t current_sequence_length = constants.PROCESS_MAX_LENGTH; current_sequence_length >= constants.PROCESS_MIN_LENGTH; --current_sequence_length) {
-        size_t x1_index = check_length_validity(data_ptr, current_sequence_length, thread_index, constants);
+    for (int current_sequence_length = constants.PROCESS_MAX_LENGTH - constants.PROCESS_MIN_LENGTH; current_sequence_length >= 0; --current_sequence_length) {
+        size_t x1_index = check_length_validity(data_ptr, current_sequence_length + constants.PROCESS_MIN_LENGTH, thread_index, constants);
         if (x1_index != 0){
             threadNodeArray.have_one_node = true;
-            if (current_sequence_length == constants.PROCESS_MAX_LENGTH){
-                threadNodeArray.add_node_mask |= 0x01;
-            } else{
-                threadNodeArray.node_mask |= (1 << (current_sequence_length - constants.PROCESS_MIN_LENGTH));
-            }
+            int byte_index = current_sequence_length / 8;
+            int bit_index = current_sequence_length % 8;
+            threadNodeArray.node_mask[byte_index] |= (1 << bit_index);
+            // if (current_sequence_length == constants.PROCESS_MAX_LENGTH){
+            //     threadNodeArray.add_node_mask |= 0x01;
+            // } else{
+            //     threadNodeArray.node_mask |= (1 << (current_sequence_length - constants.PROCESS_MIN_LENGTH));
+            // }
         }
     }
     thread_answers[thread_index] = threadNodeArray;

@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
     MAX_MISMATCH_NUMBER = std::stoi(argv[3]);
 
     std::string file_name(input_file_name);
-    file_name += "_" + std::to_string(STEM_SIZE) + "_" + std::to_string(MAX_MISMATCH_NUMBER) + "_nodes_new.txt";
+    file_name += "_" + std::to_string(STEM_SIZE) + "_" + std::to_string(MAX_MISMATCH_NUMBER) + "_nodes_new_update.txt";
     std::cout << file_name << std::endl;
     std::ofstream outfile(file_name);
     outfile.clear();
