@@ -14,6 +14,9 @@
 #include "constants.h"
 #include <algorithm>
 #include <cmath>
+#include <bitset>
+#include <climits>
+
 
 GPUNodeArray* gpu_chromosome_processing(std::vector<char> content, Constants constants){
     char* cuda_data_ptr = NULL;
@@ -65,6 +68,13 @@ GPUNodeArray* gpu_chromosome_processing(std::vector<char> content, Constants con
         return NULL;
     }
     clear_memory(cuda_data_ptr, thread_answers);
+
+    for (int i = 0; i < thread_answers_size; i++){
+	char* current_thread = cpu_thread_answers[i].node_mask;
+        for (int i = 0; i < 6; i++){
+            std::cout << std::bitset<sizeof(current_thread[i]) * CHAR_BIT>(current_thread[i]) << "\n";
+        }
+    }
     return cpu_thread_answers;
 }
 
