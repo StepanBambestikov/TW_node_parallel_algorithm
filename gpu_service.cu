@@ -31,7 +31,7 @@ __device__ bool GPU_check_string_equality(const char* block_data_ptr, char* subs
     return true;
 }
 
-__device__ size_t GPU_complementary_subsequence_exists_in_begin(const char* block_data_ptr, size_t x1_index, size_t thread_sequence_length, Constants constants) {
+__device__ int GPU_complementary_subsequence_exists_in_begin(const char* block_data_ptr, size_t x1_index, size_t thread_sequence_length, Constants constants) {
     char subsequence[MAX_STEM_SIZE];
     GPU_make_complement_subsequence(block_data_ptr, x1_index, subsequence, constants.STEM_SIZE);
     for (size_t current_sequence_begin = x1_index + (constants.STEM_SIZE * 2) + constants.L1_MIN + constants.L2_MIN; current_sequence_begin <= x1_index + (thread_sequence_length - (constants.STEM_SIZE * 2)) - constants.L3_MIN; ++current_sequence_begin) {
@@ -40,10 +40,10 @@ __device__ size_t GPU_complementary_subsequence_exists_in_begin(const char* bloc
             return current_sequence_begin;
         }
     }
-    return 0;
+    return -1;
 }
 
-__device__ size_t GPU_complementary_subsequence_exists_in_end(const char* block_data_ptr, size_t sequence_begin, size_t x4_index, size_t thread_sequence_length, Constants constants) {
+__device__ int GPU_complementary_subsequence_exists_in_end(const char* block_data_ptr, size_t sequence_begin, size_t x4_index, size_t thread_sequence_length, Constants constants) {
     char subsequence[MAX_STEM_SIZE];
     GPU_make_complement_subsequence(block_data_ptr, x4_index, subsequence, constants.STEM_SIZE);
     for (size_t current_sequence_begin = ((sequence_begin + (thread_sequence_length - (constants.STEM_SIZE * 2)) - constants.L3_MIN) - constants.L2_MIN) - constants.STEM_SIZE; current_sequence_begin >= sequence_begin + constants.STEM_SIZE + constants.L1_MIN; --current_sequence_begin) {
@@ -52,10 +52,10 @@ __device__ size_t GPU_complementary_subsequence_exists_in_end(const char* block_
             return current_sequence_begin;
         }
     }
-    return 0;
+    return -1;
 }
 
-__device__ size_t check_length_validity(const char* data_ptr, size_t current_sequence_length, size_t thread_index, Constants constants){
+__device__ int check_length_validity(const char* data_ptr, size_t current_sequence_length, size_t thread_index, Constants constants){
     //check if sequence has only A T or has more than a half N
         size_t N_count = 0;
         size_t A_count = 0;
@@ -82,18 +82,18 @@ __device__ size_t check_length_validity(const char* data_ptr, size_t current_seq
         }
         //Checking that all types of nucleotides are in the sequence, as well as the number of indeterminate nucleotides is less than half
         if (N_count > current_sequence_length / 2 || A_count == 0 || T_count == 0 || G_count == 0 || C_count == 0){
-            return 0;
+            return -1;
         }
 
-        size_t x1_index = thread_index;
-        size_t x3_index = GPU_complementary_subsequence_exists_in_begin(data_ptr, x1_index, current_sequence_length, constants);
-        if (x3_index == 0) {
-            return 0;
+        int x1_index = thread_index;
+        int x3_index = GPU_complementary_subsequence_exists_in_begin(data_ptr, x1_index, current_sequence_length, constants);
+        if (x3_index == -1) {
+            return -1;
         }
-        size_t x4_index = (current_sequence_length - constants.STEM_SIZE) + thread_index;
-        size_t x2_index = GPU_complementary_subsequence_exists_in_end(data_ptr, thread_index, x4_index, current_sequence_length, constants);
-        if (x2_index == 0) {
-            return 0;
+        int x4_index = (current_sequence_length - constants.STEM_SIZE) + thread_index;
+        int x2_index = GPU_complementary_subsequence_exists_in_end(data_ptr, thread_index, x4_index, current_sequence_length, constants);
+        if (x2_index == -1) {
+            return -1;
         }
     return x1_index;
 }
@@ -101,26 +101,39 @@ __device__ size_t check_length_validity(const char* data_ptr, size_t current_seq
 __global__ void substringProcessKernel(const char* data_ptr, size_t data_length, GPUNodeArray* thread_answers, Constants constants)
 {
     size_t thread_index = blockIdx.x * BLOCK_SIZE + threadIdx.x;
-    if (thread_index >= data_length - constants.PROCESS_MAX_LENGTH) { //Filtering out unnecessary streams
-        GPUNodeArray threadNodeArray = {false, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    GPUNodeArray threadNodeArray = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    if (thread_index > data_length - constants.PROCESS_MIN_LENGTH) { //Filtering out unnecessary streams
         thread_answers[thread_index] = threadNodeArray;
         return;
     }
-    GPUNodeArray threadNodeArray = {false, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
     //The work of a single thread is to bypass all possible lengths of the required pseudo-nodes for a fixed beginning of the sequence
     for (int current_sequence_length = constants.PROCESS_MAX_LENGTH - constants.PROCESS_MIN_LENGTH; current_sequence_length >= 0; --current_sequence_length) {
-        size_t x1_index = check_length_validity(data_ptr, current_sequence_length + constants.PROCESS_MIN_LENGTH, thread_index, constants);
-        if (x1_index != 0){
-            threadNodeArray.have_one_node = true;
+        if (thread_index + constants.PROCESS_MIN_LENGTH + current_sequence_length > data_length){
+            continue;
+        }
+        int x1_index = check_length_validity(data_ptr, current_sequence_length + constants.PROCESS_MIN_LENGTH, thread_index, constants);
+        if (x1_index != -1){
+            threadNodeArray.have_one_node |= 0xFF;
             int byte_index = current_sequence_length / 8;
             int bit_index = current_sequence_length % 8;
-            threadNodeArray.node_mask[byte_index] |= (1 << bit_index);
-            // if (current_sequence_length == constants.PROCESS_MAX_LENGTH){
-            //     threadNodeArray.add_node_mask |= 0x01;
-            // } else{
-            //     threadNodeArray.node_mask |= (1 << (current_sequence_length - constants.PROCESS_MIN_LENGTH));
-            // }
+            if (byte_index == 0){
+                threadNodeArray.node_mask[0] |= (1 << bit_index);
+            }
+            if (byte_index == 1){
+                threadNodeArray.node_mask[1] |= (1 << bit_index);
+            }
+            if (byte_index == 2){
+                threadNodeArray.node_mask[2] |= (1 << bit_index);
+            }
+            if (byte_index == 3){
+                threadNodeArray.node_mask[3] |= (1 << bit_index);
+            }
+            if (byte_index == 4){
+                threadNodeArray.node_mask[4] |= (1 << bit_index);
+            }
+            if (byte_index == 5){
+                threadNodeArray.node_mask[5] |= (1 << bit_index);
+            }
         }
     }
     thread_answers[thread_index] = threadNodeArray;

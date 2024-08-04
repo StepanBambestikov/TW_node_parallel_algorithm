@@ -25,7 +25,7 @@ static size_t STEM_SIZE = 5;
 static size_t MAX_MISMATCH_NUMBER = 0;
 
 struct GPUNodeArray { //Structures for GPU threads
-    bool have_one_node;
+    char have_one_node;
     char node_mask[6];
 };
 

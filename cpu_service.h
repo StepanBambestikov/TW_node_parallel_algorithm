@@ -131,13 +131,13 @@ std::vector<NodeArray> substring_process(const std::vector<char>& contents, size
 }
 
 std::vector<NodeArray> cpu_node_processing(const std::vector<char>& content, GPUNodeArray* thread_answers){
-    size_t thread_answers_size = content.size();
+    size_t thread_answers_size = (content.size() - PROCESS_MIN_LENGTH) + 1;
     auto node_answers = std::vector<NodeArray>();
     for (size_t current_thread_answer = 0; current_thread_answer < thread_answers_size; ++current_thread_answer) {
         auto current_raw_node = thread_answers[current_thread_answer];
         //In order not to bypass all two bytes, we use the flag 
         //that a pseudo-node may exist for the current coordinate
-        if (!current_raw_node.have_one_node){
+        if (current_raw_node.have_one_node == 0x00){
             continue;
         }
         auto substring_nodes = substring_process(content, current_thread_answer, current_raw_node.node_mask);

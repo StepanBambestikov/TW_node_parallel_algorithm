@@ -34,7 +34,7 @@ GPUNodeArray* gpu_chromosome_processing(std::vector<char> content, Constants con
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
     }
-    size_t thread_answers_size = data_size;
+    size_t thread_answers_size = (data_size - PROCESS_MIN_LENGTH) + 1;
     cudaStatus = cudaMalloc((void**)&thread_answers, thread_answers_size * sizeof(GPUNodeArray));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
@@ -49,12 +49,12 @@ GPUNodeArray* gpu_chromosome_processing(std::vector<char> content, Constants con
         clear_memory(cuda_data_ptr, thread_answers);
         return NULL;
     }
-    
     // cudaDeviceSynchronize waits for the kernel to finish, and returns
     // any errors encountered during the launch.
     cudaStatus = cudaDeviceSynchronize();
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+        fprintf(stderr, "description! %s \n", cudaGetErrorString(cudaStatus));
         clear_memory(cuda_data_ptr, thread_answers);
         return NULL;
     }
@@ -69,12 +69,16 @@ GPUNodeArray* gpu_chromosome_processing(std::vector<char> content, Constants con
     }
     clear_memory(cuda_data_ptr, thread_answers);
 
-    for (int i = 0; i < thread_answers_size; i++){
-	char* current_thread = cpu_thread_answers[i].node_mask;
-        for (int i = 0; i < 6; i++){
-            std::cout << std::bitset<sizeof(current_thread[i]) * CHAR_BIT>(current_thread[i]) << "\n";
-        }
-    }
+    // for (int i = 0; i < thread_answers_size; i++){
+    //     std::cout << "========" << std::endl;
+    //     std::cout << "bool:" << bool(cpu_thread_answers[i].have_one_node) << std::endl;
+	//     char* current_thread = cpu_thread_answers[i].node_mask;
+    //     //std::cout << bool(cpu_thread_answers[i].have_one_node) << "\n";
+    //     for (int y = 0; y < 6; y++){
+    //         std::cout << std::bitset<sizeof(current_thread[y]) * CHAR_BIT>(current_thread[y]) << "\n";
+    //     }
+    // }
+    //std::cout << "thread count: " << thread_answers_size << "\n";
     return cpu_thread_answers;
 }
 
@@ -87,6 +91,9 @@ int main(int argc, char* argv[])
     auto input_file_name = argv[1];
     STEM_SIZE = std::stoi(argv[2]);
     MAX_MISMATCH_NUMBER = std::stoi(argv[3]);
+    // auto input_file_name = "../error/correct.fa";
+    // STEM_SIZE = 14;
+    // MAX_MISMATCH_NUMBER = 0;
 
     std::string file_name(input_file_name);
     file_name += "_" + std::to_string(STEM_SIZE) + "_" + std::to_string(MAX_MISMATCH_NUMBER) + "_nodes_new_update.txt";
@@ -114,12 +121,20 @@ int main(int argc, char* argv[])
 
     Constants constants = Constants{PROCESS_MAX_LENGTH, PROCESS_MIN_LENGTH, L1_MIN, L2_MIN, L3_MIN, L1_MAX, L2_MAX, L3_MAX, STEM_SIZE, MAX_MISMATCH_NUMBER};
 
+    // std::string str = "TGTGTGTGTGTATATGTATGTATATATGTGTGTGTGTGTATACATATATATATACACACACACACACACACACACATATATAAAAAA";
+    // std::vector<char> data(str.begin(), str.end());
+    // auto cpu_thread_answers = gpu_chromosome_processing(data, constants);
+    
+
     while (!in.eof())
     {
         std::getline(in, current_line);
         if (current_line[0] == '>'){
-            if (data_exists_flag){ //Processing of a single chromosome
+            if (data_exists_flag && contents.size() >= PROCESS_MIN_LENGTH){ //Processing of a single chromosome
                 auto cpu_thread_answers = gpu_chromosome_processing(contents, constants);
+                if (cpu_thread_answers == NULL){
+                    return -1;
+                }
                 auto node_answers = cpu_node_processing(contents, cpu_thread_answers);
                 add_in_file(node_answers, contents, file_name, current_line);
                 contents.clear();
@@ -132,6 +147,13 @@ int main(int argc, char* argv[])
         }
         std::transform(current_line.begin(), current_line.end(), current_line.begin(), ::toupper);
         contents.insert(contents.end(), current_line.begin(), current_line.end());
+    }
+    if (!contents.empty()){
+        auto cpu_thread_answers = gpu_chromosome_processing(contents, constants);
+        auto node_answers = cpu_node_processing(contents, cpu_thread_answers);
+        add_in_file(node_answers, contents, file_name, current_line);
+        contents.clear();
+        free(cpu_thread_answers);
     }
     return 0;
 }
